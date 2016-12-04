@@ -7,8 +7,8 @@ DHT22 will be used for checking predefined temperature.
 5V relay to start the boiler
 
 SW
-Python 2.7 (maybe 3), will run in 5 minute interval - by cron, probably under root acc (GPIO)
-Will use modified Adafruit script for reading DHT22
+Python 3, will run in 5 minute interval - by cron
+Adafruit library is required for DHT
 JSON for storing config & temperature
 
 
