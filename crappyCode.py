@@ -7,7 +7,6 @@ from urllib import request, parse
 
 class thermostat:
 	'welp, just another crappy documented code'
-	#here you can place vars shared between same class
 	
 	def __init__(self, log, confPath = "conf.json"):
 		self.log = log # set log object as variable accesible by whole class
@@ -72,13 +71,13 @@ class thermostat:
 			self.log.write.warning('Wrong sensor type, allowed type: "DHT22", "DHT11", "AM2302"')
 			self.forceQuit(True)
 		
-		if isinstance(self.conf["sensor"]["pin"], int) and self.conf["sensor"]["pin"] <= 40:
+		if isinstance(self.conf["sensor"]["pin"], int) and self.conf["sensor"]["pin"] <= 40:	#control if sensor pin is set as integer. Float, string, list, w/e should't be there...
 			h,t = DHT.read_retry(s, self.conf["sensor"]["pin"])
 			self.log.write.debug("Sensor: {0}, pin: {1}, reading - temp: {2}*C and hum: {3}%".format(s, self.conf["sensor"]["pin"], t, h))
 			if h != None and t != None:
-				return (float("{0:0.2f}".format(t)), float("{0:0.2f}".format(h)))
+				return (float("{0:0.2f}".format(t)), float("{0:0.2f}".format(h))) # return formated reading in tuple
 			else:
-				self.log.write.warning("Sensor returned None values! Aborting script.")
+				self.log.write.warning("Sensor returned None values! Aborting script.") # if read_retry fail, abort script
 				self.forceQuit(True)
 		else:
 			self.log.write.critical("Sensor pin: '{0}' is not integer type!".format(self.conf["sensor"]["pin"]))
@@ -127,10 +126,10 @@ class db:
 	def __init__(self, therm, dbPath = "tempDB.sqlite3"):
 		self.therm = therm
 		self.dbPath = os.path.join(os.path.dirname(os.path.abspath(__file__)), dbPath)
-		self.conn = sqlite3.connect(self.dbPath)
-		self.cursor = self.conn.cursor()
+		self.conn = sqlite3.connect(self.dbPath) # open connection to given database
+		self.cursor = self.conn.cursor() # get DB cursor
 		self.cursor.execute("CREATE TABLE IF NOT EXISTS log(time DATETIME PRIMARY KEY NOT NULL, temp REAL NOT NULL, hum REAL NOT NULL, relay INTEGER)")
-		self.conn.commit()
+		self.conn.commit() # commit upper SQL
 	
 	def insert(self):
 		self.cursor.execute("INSERT INTO log (time, temp, hum, relay) VALUES ('{0}','{1}','{2}',{3})".format(datetime.datetime.now().isoformat(' '), self.therm.currentTemp[0], self.therm.currentTemp[1], GPIO.input(self.therm.conf["relay"])))
@@ -140,22 +139,22 @@ class db:
 		self.conn.close()
 		
 class remoteLog:
-	'mel by ses naucit dokumentovat si kod...'
+	'class that upload temp, humidity, relay state and directive on specified web server, class use GET method to pass these parameters, sample PHP web UI will be in https://github.com/ZtracenaExistence/doomsday-device-webUI'
 	def __init__(self, therm):
 		self.therm = therm
 	def upload(self, dict = {}):
 		dict['date'] = datetime.datetime.now().isoformat(' ')
-		dict['directive'] = json.JSONEncoder().encode(self.therm.directive)
-		dict['targetTemp'] = self.therm.targetTemp
-		dict['currentTemp'] = self.therm.currentTemp[0]
-		dict['currentHum'] = self.therm.currentTemp[1]
-		dict['relay'] = GPIO.input(self.therm.conf["relay"])
-		url_values = parse.urlencode(dict)
+		dict['directive'] = json.JSONEncoder().encode(self.therm.directive) # directive is passed as JSON
+		dict['targetTemp'] = self.therm.targetTemp # reading temp directly from thermostat class
+		dict['currentTemp'] = self.therm.currentTemp[0] # reading is in tuple -> thus temp is first
+		dict['currentHum'] = self.therm.currentTemp[1] # and humidity second
+		dict['relay'] = GPIO.input(self.therm.conf["relay"]) # get current relay state
+		url_values = parse.urlencode(dict) # encode it to valid URL, parse method from urllib library
 		url = self.therm.conf['server'] + '?' + url_values
 		self.therm.log.write.debug("Contacting url: {0}".format(url))
-		data = request.urlopen(url)
-		data = data.read().decode('utf-8')
-		if data == "True":
+		data = request.urlopen(url) #try to open url, well maybe i should really put in try/except -> network issues/modem problem etc.
+		data = data.read().decode('utf-8') # read returned page, well ofc this can be one-sided communication, this is used to get True/False if everything is correct at server side
+		if data == "True": # server return blank page with word [ True | False ] based retrieved data
 			self.therm.log.write.debug('Remote server accepted request')
 		else:
 			self.therm.log.write.info('Remote server DID NOT accepted request, returned: {0}'.format(data))
